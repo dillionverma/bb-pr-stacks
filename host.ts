@@ -5,6 +5,7 @@ import { experimental_defineHostEntry } from "@get-bb/plugin-sdk";
 import type { z } from "zod";
 import { hostContract } from "./contract.js";
 import { summarizeChecks, type CheckRollupEntry, type PullRequest } from "./stack.js";
+import { createSwrCache } from "./swr-cache.js";
 
 export type CommandResult =
   | { ok: true; stdout: string }
@@ -39,6 +40,18 @@ export const runGh: GhRunner = (args, { cwd, signal }) =>
 
 const PR_FIELDS = "number,title,headRefName,baseRefName,state,isDraft,url,statusCheckRollup";
 const PR_LIMIT = 200;
+
+/**
+ * `gh pr list` with check rollups takes a second or more against GitHub, and
+ * a hover card asks about the same checkout again and again. Within this
+ * window the last answer comes back at once; a slightly older one is served
+ * too, while a refresh runs behind the card rather than in front of it.
+ */
+export const CACHE_FRESH_MS = 30_000;
+export const CACHE_STALE_MS = 5 * 60_000;
+
+/** A `gh` call that hangs this long is not going to answer. */
+const GH_TIMEOUT_MS = 30_000;
 
 interface RawPullRequest {
   number: number;
@@ -78,40 +91,58 @@ function classifyFailure(stderr: string): ListPullRequestsResult {
   return { status: "error", message };
 }
 
-export function createHostEntry(gh: GhRunner = runGh) {
+const GH_MISSING: ListPullRequestsResult = {
+  status: "gh-missing",
+  message: "GitHub CLI (gh) is not installed on this host.",
+};
+
+/** Both `gh` calls resolve the repo from the checkout, so they run side by side. */
+export async function listPullRequests(
+  gh: GhRunner,
+  cwd: string,
+  signal: AbortSignal,
+): Promise<ListPullRequestsResult> {
+  const [repo, list] = await Promise.all([
+    gh(["repo", "view", "--json", "nameWithOwner,defaultBranchRef"], { cwd, signal }),
+    gh(["pr", "list", "--state", "open", "--limit", String(PR_LIMIT), "--json", PR_FIELDS], { cwd, signal }),
+  ]);
+  // When gh or the checkout is the problem both calls fail; the repo view's
+  // message is the clearer one, so its verdict wins.
+  if (!repo.ok) return repo.reason === "not-found" ? GH_MISSING : classifyFailure(repo.stderr);
+  if (!list.ok) return list.reason === "not-found" ? GH_MISSING : classifyFailure(list.stderr);
+
+  const view = JSON.parse(repo.stdout) as {
+    nameWithOwner: string;
+    defaultBranchRef?: { name?: string } | null;
+  };
+  const raw = JSON.parse(list.stdout) as RawPullRequest[];
+  return {
+    status: "ok",
+    repo: view.nameWithOwner,
+    defaultBranch: view.defaultBranchRef?.name ?? "main",
+    pullRequests: raw.map(parsePullRequest),
+  };
+}
+
+export function createHostEntry(gh: GhRunner = runGh, options: { now?: () => number } = {}) {
+  const cache = createSwrCache<string, ListPullRequestsResult>({
+    freshMs: CACHE_FRESH_MS,
+    staleMs: CACHE_STALE_MS,
+    now: options.now,
+  });
   return experimental_defineHostEntry({
     contract: hostContract,
     handlers: {
-      listPullRequests: async ({ cwd }, { signal }): Promise<ListPullRequestsResult> => {
-        const repo = await gh(["repo", "view", "--json", "nameWithOwner,defaultBranchRef"], { cwd, signal });
-        if (!repo.ok) {
-          if (repo.reason === "not-found") {
-            return { status: "gh-missing", message: "GitHub CLI (gh) is not installed on this host." };
-          }
-          return classifyFailure(repo.stderr);
-        }
-        const view = JSON.parse(repo.stdout) as {
-          nameWithOwner: string;
-          defaultBranchRef?: { name?: string } | null;
-        };
-
-        const list = await gh(
-          ["pr", "list", "--repo", view.nameWithOwner, "--state", "open", "--limit", String(PR_LIMIT), "--json", PR_FIELDS],
-          { cwd, signal },
+      listPullRequests: async ({ cwd }): Promise<ListPullRequestsResult> => {
+        // A load may outlive the request that started it (a stale refresh),
+        // so it gets its own deadline rather than the caller's signal.
+        const result = await cache.get(cwd, () =>
+          listPullRequests(gh, cwd, AbortSignal.timeout(GH_TIMEOUT_MS)),
         );
-        if (!list.ok) {
-          if (list.reason === "not-found") {
-            return { status: "gh-missing", message: "GitHub CLI (gh) is not installed on this host." };
-          }
-          return classifyFailure(list.stderr);
-        }
-        const raw = JSON.parse(list.stdout) as RawPullRequest[];
-        return {
-          status: "ok",
-          repo: view.nameWithOwner,
-          defaultBranch: view.defaultBranchRef?.name ?? "main",
-          pullRequests: raw.map(parsePullRequest),
-        };
+        // A problem is worth reporting, not remembering: the call right after
+        // `gh auth login` should see the fix.
+        if (result.status !== "ok") cache.clear(cwd);
+        return result;
       },
     },
   });

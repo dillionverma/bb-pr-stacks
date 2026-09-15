@@ -55,7 +55,7 @@ appears only when there is a stack or a `gh` problem worth showing.
 ## Install
 
 ```
-bb plugin install git:https://github.com/dillionverma/bb-pr-stacks --subdirectory bb-pr-stacks
+bb plugin install git:https://github.com/dillionverma/bb-pr-stacks
 ```
 
 Or from a checkout:

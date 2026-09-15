@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createFakePluginHost, makeThreadResponse } from "@get-bb/plugin-sdk/testing";
-import plugin, { formatStack } from "./server";
+import plugin, { CACHE_FRESH_MS, CACHE_STALE_MS, formatStack } from "./server";
 import type { PullRequest } from "./stack";
 
 function pr(number: number, head: string, base: string, extra: Partial<PullRequest> = {}): PullRequest {
@@ -23,6 +23,7 @@ async function setup(options: {
   environment?: Partial<{ id: string; hostId: string; path: string | null; isGitRepo: boolean; branchName: string | null; defaultBranch: string | null }>;
   environmentId?: string | null;
   hostResult?: unknown;
+  now?: () => number;
 } = {}) {
   const environmentId = options.environmentId === undefined ? "env_1" : options.environmentId;
   const environment = {
@@ -41,9 +42,9 @@ async function setup(options: {
       threads: { get: async ({ threadId }: { threadId: string }) => makeThreadResponse({ id: threadId, environmentId }) },
       environments: { get: async () => environment },
     },
-    experimental_callHostRpc: async () => hostResult,
+    experimental_callHostRpc: async () => (typeof hostResult === "function" ? hostResult() : hostResult),
   });
-  await plugin(bb);
+  await plugin(bb, { now: options.now });
   return { harness };
 }
 
@@ -99,6 +100,70 @@ describe("stack_for_thread rpc", () => {
       status: "ok",
       stack: { pullRequest: { number: 1006 }, children: [] },
     });
+  });
+});
+
+describe("stack_for_thread cache", () => {
+  function fixture(hostResults: unknown[]) {
+    let now = 1_000_000;
+    let hostCalls = 0;
+    const promise = setup({
+      now: () => now,
+      hostResult: () => hostResults[Math.min(hostCalls++, hostResults.length - 1)],
+    });
+    return {
+      promise,
+      tick: (ms: number) => (now += ms),
+      hostCalls: () => hostCalls,
+    };
+  }
+  const ok = { status: "ok", repo: "acme/widgets", defaultBranch: "main", pullRequests: PRS };
+  const okEmpty = { status: "ok", repo: "acme/widgets", defaultBranch: "main", pullRequests: [] };
+
+  it("answers a repeat call for the same thread without asking the host again", async () => {
+    const f = fixture([ok, okEmpty]);
+    const { harness } = await f.promise;
+    await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" });
+    f.tick(CACHE_FRESH_MS - 1);
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "ok" });
+    expect(f.hostCalls()).toBe(1);
+  });
+
+  it("serves a stale answer at once and refreshes it behind the caller", async () => {
+    const f = fixture([ok, okEmpty]);
+    const { harness } = await f.promise;
+    await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" });
+    f.tick(CACHE_FRESH_MS + 1);
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "ok" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(f.hostCalls()).toBe(2);
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "no-pull-request" });
+    expect(f.hostCalls()).toBe(2);
+  });
+
+  it("waits for a fresh answer once the old one has expired", async () => {
+    const f = fixture([ok, okEmpty]);
+    const { harness } = await f.promise;
+    await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" });
+    f.tick(CACHE_FRESH_MS + CACHE_STALE_MS + 1);
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "no-pull-request" });
+  });
+
+  it("does not remember a problem outcome", async () => {
+    const f = fixture([{ status: "gh-unauthenticated", message: "Run gh auth login." }, ok]);
+    const { harness } = await f.promise;
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "gh-unauthenticated" });
+    expect(await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" })).toMatchObject({ status: "ok" });
+    expect(f.hostCalls()).toBe(2);
+  });
+
+  it("keeps the cli on live data", async () => {
+    const f = fixture([ok, okEmpty]);
+    const { harness } = await f.promise;
+    await harness.behavior.callRpc("stack_for_thread", { threadId: "thr_1" });
+    const result = await harness.behavior.runCli(["thr_1", "--json"]);
+    expect(JSON.parse(result.stdout ?? "")).toMatchObject({ status: "no-pull-request" });
+    expect(f.hostCalls()).toBe(2);
   });
 });
 

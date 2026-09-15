@@ -10,11 +10,26 @@ import {
   formatState,
   type StackNode,
 } from "./stack.js";
+import { createSwrCache } from "./swr-cache.js";
 
 export { rpcContract, type StackResult };
 
-export default async function plugin(bb: BbPluginApi) {
+/**
+ * A hover card asks about a thread every time the pointer rests on its row.
+ * Within this window the answer is immediate; a slightly older one is served
+ * while a refresh runs behind it. The host keeps its own cache of the `gh`
+ * output, so even a miss here rarely reaches GitHub.
+ */
+export const CACHE_FRESH_MS = 15_000;
+export const CACHE_STALE_MS = 5 * 60_000;
+
+export default async function plugin(bb: BbPluginApi, options: { now?: () => number } = {}) {
   const host = bb.hosts.experimental_client({ contract: hostContract });
+  const cache = createSwrCache<string, StackResult>({
+    freshMs: CACHE_FRESH_MS,
+    staleMs: CACHE_STALE_MS,
+    now: options.now,
+  });
 
   async function stackForThread(threadId: string, signal?: AbortSignal): Promise<StackResult> {
     const thread = await bb.sdk.threads.get({ threadId, signal });
@@ -46,7 +61,15 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   bb.rpc.register(rpcContract, {
-    stack_for_thread: ({ threadId }) => stackForThread(threadId),
+    stack_for_thread: async ({ threadId }) => {
+      const startedAt = Date.now();
+      const result = await cache.get(threadId, () => stackForThread(threadId));
+      // A thread without an environment gets one when it starts; a `gh`
+      // problem gets fixed. Neither answer should stick around.
+      if (result.status !== "ok" && result.status !== "no-pull-request") cache.clear(threadId);
+      bb.log.info(`stack_for_thread ${threadId}: ${result.status} in ${Date.now() - startedAt}ms`);
+      return result;
+    },
   });
 
   const usage = [
