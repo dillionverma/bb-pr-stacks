@@ -1,20 +1,18 @@
-See the pull requests stacked on top of each other for the branch a thread is
-working on.
+See the chain behind the change. Pull request stacks, branches, and checks inside BB.
 
 ## What you get
 
-- A **stack · N** control in the thread header. Open it for the chain of pull
-  requests, indented by depth, with number, title, state, and check status.
-- A `bb pr-stacks` command that prints the same chain in a terminal or from an
-  agent.
-
-## How it works
-
-The plugin reads open pull requests through the GitHub CLI on the machine that
-holds the checkout, then links each pull request to the one whose head branch
-is its base branch. Nothing is stored; each open of the thread fetches fresh.
+- **Stack at a glance.** An indented PR chain with the current branch highlighted.
+- **Review context.** PR titles, draft state, and check status.
+- **Header and sidebar.** A stack control in the thread header and integration with Ultra Sidebar hover cards.
+- **CLI parity.** Print the same stack with `bb pr-stacks`.
 
 ## Requirements
 
-`gh` must be installed and logged in on the host. Without it, the control
-explains what is missing instead of failing.
+Install and authenticate `gh` on each checkout’s host. Open a Git-backed thread with a PR, then select **stack · N**.
+
+`bb pr-stacks [show] [thread-id] [--json]` prints the stack.
+
+## Source
+
+[Source and installation](https://github.com/dillionverma/bb-pr-stacks)

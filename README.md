@@ -1,93 +1,59 @@
-# bb-pr-stacks
+# PR Stacks
 
-A [BB](https://github.com/get-bb/bb) plugin that shows the **stack of pull
-requests** a thread's branch belongs to: the chain where each PR's base branch
-is another PR's head branch.
+See the chain behind the change. Pull request stacks, branches, and checks inside BB.
 
-![The stack control open in a BB thread header, listing seven stacked pull requests](assets/stack-popover.webp)
+A plugin for [BB](https://getbb.app).
 
-## What you get
+## Highlights
 
-- A `stack · N` control in the thread header. Opening it lists the stack as an
-  indented chain with PR number, title, state, and check status. The thread's
-  own PR is highlighted.
-- A `bb pr-stacks [show] [<thread-id>] [--json]` command that prints the same
-  stack from a shell. Inside a thread the id defaults to the current thread,
-  and `*` marks its pull request.
-
-  ```console
-  $ bb pr-stacks
-  productstudioinc/cops · stack of 7 (on codex/workflow-1-env)
-  * #1007 fix(env): make development secrets refresh explicit and safe (open, checks passing)
-      #1008 fix(setup): unify offline worktree preparation (draft, checks passing)
-        #1009 fix(workflow): make checks read-only and complete (draft, checks failing)
-          #1010 ci: split verification and preserve checks result (draft, checks failing)
-            #1011 refactor(env): define narrow auth database and web boundaries (draft, checks failing)
-              #1012 docs: add focused COPS development workflow guide (draft, checks failing)
-                #1013 chore(oxc): order staged fixes and document focused diagnostics (draft, checks failing)
-  ```
-
-- A skill that tells agents how to use the command.
-
-## How it works
-
-BB's SDK exposes one pull request per environment and no repo-wide listing, so
-the data comes from the [GitHub CLI](https://cli.github.com). The plugin's
-`bb.host` entry runs on the machine that holds the checkout and shells out to:
-
-```
-gh repo view --json nameWithOwner,defaultBranchRef
-gh pr list --repo <owner/repo> --state open --json number,title,headRefName,baseRefName,state,isDraft,url,statusCheckRollup
-```
-
-The server resolves a thread to its environment (checkout path, host, branch,
-default branch), asks the host for the open PRs, and infers stacks in
-`stack.ts`:
-
-- A PR is a child of the PR whose head branch equals its base branch.
-- Roots are PRs based on the default branch, or on a branch with no open PR
-  (an orphaned base, for example one that was merged already).
-- Cycles cannot reach a root, so their members become extra roots. Every PR
-  appears exactly once.
-
-Outcomes that are not stacks are reported, never thrown: `gh` not installed,
-`gh` not authenticated, a checkout without a GitHub remote, a thread without an
-environment or git checkout, and a branch with no open PR. The header control
-appears only when there is a stack or a `gh` problem worth showing.
-
-## Requirements
-
-- BB 0.43 or newer.
-- `gh` installed and authenticated (`gh auth login`) on the host that runs the
-  thread's environment.
+- **Stack at a glance.** An indented PR chain with the current branch highlighted.
+- **Review context.** PR titles, draft state, and check status.
+- **Header and sidebar.** A stack control in the thread header and integration with Ultra Sidebar hover cards.
+- **CLI parity.** Print the same stack with `bb pr-stacks`.
 
 ## Install
 
-```
-bb plugin install git:https://github.com/dillionverma/bb-pr-stacks
-```
-
-Or from a checkout:
-
-```
-npm install
-bb plugin install .
+```sh
+bb plugin install https://github.com/dillionverma/bb-pr-stacks
 ```
 
-## Develop
+Requires BB 0.43+ and a compatible Plugin SDK (see `package.json`).
 
-```
-npm install
-npm test            # vitest: stack inference, host entry, server rpc/cli, header action
+## Use
+
+Install and authenticate `gh` on each checkout’s host. Open a Git-backed thread with a PR, then select **stack · N**.
+
+`bb pr-stacks [show] [thread-id] [--json]` prints the stack.
+
+## Designed to stay responsive
+
+Host and server caches reuse GitHub CLI results across repeated lookups. Stacks are inferred from PR base/head branch relationships.
+
+## Development
+
+```sh
+npm ci
 npm run typecheck
-bb plugin build
-bb plugin dev       # rebuild + reload on save
+npm test
+bb plugin build .
 ```
 
-Files:
+Focused fixes and reproducible bug reports are welcome. Include BB version, platform, and steps to reproduce.
 
-- `stack.ts` — pure stack inference and check summarization.
-- `contract.ts` — zod contracts shared by host, server, and app.
-- `host.ts` — runs `gh` on the host; the runner is injectable for tests.
-- `server.ts` — `stack_for_thread` RPC and the `bb pr-stacks` command.
-- `app.tsx` — the thread header control.
+## Compatibility
+
+The repository and display name are independent of BB’s persistent plugin identity. The internal ID remains `bb-pr-stacks` so existing settings, stored data, CLI commands, and integrations continue to work.
+
+## The Ultra suite
+
+Built for getting work done across multiple threads, agents, and projects. Install only the pieces you need.
+
+- [Ultra Sidebar](https://github.com/dillionverma/bb-plugin-ultra-sidebar) — Organize parallel work.
+- [Ultra Launcher](https://github.com/dillionverma/bb-plugin-ultra-launcher) — Start the next run.
+- [Ultra Topbar](https://github.com/dillionverma/bb-plugin-ultra-topbar) — Turn threads into pull requests.
+- [Linear Panel](https://github.com/dillionverma/bb-plugin-linear-panel) — Keep issues beside execution.
+- [Usage Window](https://github.com/dillionverma/bb-plugin-usage-window) — Keep account capacity in view.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

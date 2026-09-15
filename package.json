@@ -1,7 +1,7 @@
 {
   "name": "bb-plugin-bb-pr-stacks",
   "version": "0.1.0",
-  "description": "Stacked pull requests for BB threads, read from the GitHub CLI.",
+  "description": "See the pull request stack behind a thread, with branch relationships and check status.",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -19,14 +19,16 @@
   },
   "bb": {
     "name": "PR Stacks",
-    "description": "Shows the stack of pull requests a thread's branch belongs to.",
+    "description": "See the pull request stack behind a thread, with branch relationships and check status.",
     "branding": {
       "icon": "GitBranch"
     },
     "server": "./server.ts",
     "host": "./host.ts",
     "app": "./app.tsx",
-    "skills": ["skills"]
+    "skills": [
+      "skills"
+    ]
   },
   "dependencies": {
     "zod": "^4.3.6"
@@ -63,5 +65,9 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^3.4.0",
     "vaul": "^1.1.2"
+  },
+  "homepage": "https://github.com/dillionverma/bb-pr-stacks#readme",
+  "bugs": {
+    "url": "https://github.com/dillionverma/bb-pr-stacks/issues"
   }
 }
