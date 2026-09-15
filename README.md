@@ -4,12 +4,7 @@ A [BB](https://github.com/get-bb/bb) plugin that shows the **stack of pull
 requests** a thread's branch belongs to: the chain where each PR's base branch
 is another PR's head branch.
 
-```
- #1007 fix(env): make development secrets refresh explicit and safe (open, checks passing)
-   #1008 fix(setup): unify offline worktree preparation (draft, checks passing)
-*    #1009 fix(workflow): make checks read-only and complete (draft, checks failing)
-       #1010 ci: split verification and preserve checks result (draft, checks failing)
-```
+![The stack control open in a BB thread header, listing seven stacked pull requests](assets/stack-popover.webp)
 
 ## What you get
 
@@ -17,7 +12,21 @@ is another PR's head branch.
   indented chain with PR number, title, state, and check status. The thread's
   own PR is highlighted.
 - A `bb pr-stacks [show] [<thread-id>] [--json]` command that prints the same
-  stack from a shell. Inside a thread the id defaults to the current thread.
+  stack from a shell. Inside a thread the id defaults to the current thread,
+  and `*` marks its pull request.
+
+  ```console
+  $ bb pr-stacks
+  productstudioinc/cops · stack of 7 (on codex/workflow-1-env)
+  * #1007 fix(env): make development secrets refresh explicit and safe (open, checks passing)
+      #1008 fix(setup): unify offline worktree preparation (draft, checks passing)
+        #1009 fix(workflow): make checks read-only and complete (draft, checks failing)
+          #1010 ci: split verification and preserve checks result (draft, checks failing)
+            #1011 refactor(env): define narrow auth database and web boundaries (draft, checks failing)
+              #1012 docs: add focused COPS development workflow guide (draft, checks failing)
+                #1013 chore(oxc): order staged fixes and document focused diagnostics (draft, checks failing)
+  ```
+
 - A skill that tells agents how to use the command.
 
 ## How it works

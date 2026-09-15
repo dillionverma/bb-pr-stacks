@@ -175,9 +175,9 @@ describe("bb pr-stacks cli", () => {
     expect(result.stdout).toBe(
       [
         "acme/widgets · stack of 3 (on b)",
-        " #996 PR 996 (open, checks passing)",
-        "*  #997 PR 997 (open, checks passing)",
-        "     #998 PR 998 (draft, checks failing)",
+        "  #996 PR 996 (open, checks passing)",
+        "*   #997 PR 997 (open, checks passing)",
+        "      #998 PR 998 (draft, checks failing)",
       ].join("\n"),
     );
   });
@@ -206,6 +206,6 @@ describe("bb pr-stacks cli", () => {
 describe("formatStack", () => {
   it("marks the current branch and indents by depth", () => {
     const stack = { pullRequest: pr(1, "a", "main"), children: [{ pullRequest: pr(2, "b", "a"), children: [] }] };
-    expect(formatStack(stack, "b")).toBe(" #1 PR 1 (open, checks passing)\n*  #2 PR 2 (open, checks passing)");
+    expect(formatStack(stack, "b")).toBe("  #1 PR 1 (open, checks passing)\n*   #2 PR 2 (open, checks passing)");
   });
 });

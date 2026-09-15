@@ -91,7 +91,7 @@ function StackHeaderAction({ threadId, isCompactViewport }: PluginThreadHeaderAc
           {...portalProps}
           align="end"
           sideOffset={6}
-          className="z-50 w-[28rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 text-foreground shadow-md"
+          className="z-50 w-[34rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 text-foreground shadow-md outline-none"
         >
           {result.status === "ok" ? (
             <>

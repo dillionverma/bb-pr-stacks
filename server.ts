@@ -111,7 +111,7 @@ export function formatStack(stack: StackNode, currentBranch?: string): string {
   return flattenStack(stack)
     .map(({ pullRequest, depth }) => {
       const marker = pullRequest.headRefName === currentBranch ? "*" : " ";
-      return `${marker}${"  ".repeat(depth)}#${pullRequest.number} ${pullRequest.title} (${formatState(pullRequest)}, ${formatChecks(pullRequest.checks)})`;
+      return `${marker} ${"  ".repeat(depth)}#${pullRequest.number} ${pullRequest.title} (${formatState(pullRequest)}, ${formatChecks(pullRequest.checks)})`;
     })
     .join("\n");
 }
