@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createFakePluginHost, makeThreadResponse } from "@get-bb/plugin-sdk/testing";
 import plugin, { CACHE_FRESH_MS, CACHE_STALE_MS, formatStack } from "./server";
-import type { PullRequest } from "./stack";
+import type { PullRequest } from "./stack/stack";
 
 function pr(number: number, head: string, base: string, extra: Partial<PullRequest> = {}): PullRequest {
   return {

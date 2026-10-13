@@ -5,7 +5,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { definePluginApp, UrlLink, useRpc } from "@get-bb/plugin-sdk/app";
 import type { PluginThreadHeaderActionProps } from "@get-bb/plugin-sdk/app";
 import type { rpcContract, StackResult } from "./server";
-import { countStack, flattenStack, formatChecks, formatState, type CheckState, type StackNode } from "./stack";
+import { countStack, flattenStack, formatChecks, formatState, type CheckState, type StackNode } from "./stack/stack";
 import { usePortalScopeProps } from "@/lib/portal-scope";
 
 function useStack(threadId: string): StackResult | null {

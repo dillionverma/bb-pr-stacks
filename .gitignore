@@ -2,8 +2,6 @@ dist/
 node_modules/
 .claude/
 
-node_modules/
-dist/
 preview-dist/
 coverage/
 .env

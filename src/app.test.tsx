@@ -2,8 +2,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { fireEvent, waitFor } from "@testing-library/react";
 import { loadPluginApp, renderSlot } from "@get-bb/plugin-sdk/testing/app";
-import type { StackResult } from "./contract";
-import type { PullRequest } from "./stack";
+import type { StackResult } from "./stack/contract";
+import type { PullRequest } from "./stack/stack";
 
 function pr(number: number, head: string, base: string, extra: Partial<PullRequest> = {}): PullRequest {
   return {

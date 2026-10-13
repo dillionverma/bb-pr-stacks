@@ -3,9 +3,9 @@
 import { execFile } from "node:child_process";
 import { experimental_defineHostEntry } from "@get-bb/plugin-sdk";
 import type { z } from "zod";
-import { hostContract } from "./contract.js";
-import { summarizeChecks, type CheckRollupEntry, type PullRequest } from "./stack.js";
-import { createSwrCache } from "./swr-cache.js";
+import { hostContract } from "./stack/contract.js";
+import { summarizeChecks, type CheckRollupEntry, type PullRequest } from "./stack/stack.js";
+import { createSwrCache } from "./stack/swr-cache.js";
 
 export type CommandResult =
   | { ok: true; stdout: string }

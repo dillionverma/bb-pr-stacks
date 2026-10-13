@@ -1,7 +1,7 @@
 // bb-plugin-bb-pr-stacks — server entry. Resolves a thread to its checkout,
 // asks the host entry for the repo's open pull requests, and infers the stack.
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
-import { hostContract, rpcContract, type StackResult } from "./contract.js";
+import { hostContract, rpcContract, type StackResult } from "./stack/contract.js";
 import {
   buildStacks,
   findStackForBranch,
@@ -9,8 +9,8 @@ import {
   formatChecks,
   formatState,
   type StackNode,
-} from "./stack.js";
-import { createSwrCache } from "./swr-cache.js";
+} from "./stack/stack.js";
+import { createSwrCache } from "./stack/swr-cache.js";
 
 export { rpcContract, type StackResult };
 
